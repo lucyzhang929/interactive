@@ -123,8 +123,18 @@ namespace Microsoft.DotNet.Interactive.SqlServer
 
             if (_queryCompletionHandler != null)
             {
-                context.Display("Error: Another query is currently running. Please wait for that query to complete before re-running this cell.");
-                return;
+                if (context.CancellationToken.IsCancellationRequested)
+                {
+                    _queryCompletionHandler = async queryParams => 
+                    {
+                        context.Display("Query cancelled");
+                    };
+                }
+                else
+                {
+                    context.Display("Error: Another query is currently running. Please wait for that query to complete before re-running this cell.");
+                    return;
+                }
             }
 
             var completion = new TaskCompletionSource<bool>();
@@ -195,7 +205,7 @@ namespace Microsoft.DotNet.Interactive.SqlServer
 
             try
             {
-                await _serviceClient.ExecuteQueryStringAsync(_tempFileUri, command.Code);
+                await _serviceClient.ExecuteQueryStringAsync(_tempFileUri, command.Code, context.CancellationToken);
                 await completion.Task;
             }
             finally
